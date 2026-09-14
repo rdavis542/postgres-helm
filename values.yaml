@@ -1,0 +1,105 @@
+replicaCount: 1
+
+image:
+  repository: postgres
+  tag: "16"
+  pullPolicy: IfNotPresent
+
+postgres:
+  user: postgres
+  database: postgres
+  # POSTGRES_PASSWORD comes from secrets.password (see below), not from here.
+
+service:
+  # ClusterIP is the recommended default (in-cluster only). This is kept as
+  # LoadBalancer to match the current external-reachability requirement, but
+  # every connection still requires a scram-sha-256 password (see pgHbaLines
+  # below) - unlike the old Terraform config's "trust" entries.
+  type: LoadBalancer
+  port: 5432
+  annotations: {}
+
+storage:
+  # "" = use the cluster's default StorageClass. Set explicitly if this
+  # cluster has no default class (the old Terraform setup used a manually
+  # created hostPath PV on NFS - avoid recreating that for a database;
+  # prefer a StorageClass backed by real block storage or a CSI driver
+  # rated for database workloads).
+  storageClassName: ""
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsUser: 999
+  runAsGroup: 999
+  fsGroup: 999
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+livenessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+# Rendered verbatim into postgresql.conf as `key = value`. Quote values that
+# need to be single-quoted strings in postgresql.conf yourself (see the
+# defaults below for examples) - this stays a dumb passthrough on purpose so
+# any postgresql.conf setting can be added without touching templates.
+postgresqlConf:
+  listen_addresses: "'*'"
+  port: "5432"
+  max_connections: "100"
+  shared_buffers: "256MB"
+  dynamic_shared_memory_type: posix
+  max_wal_size: 1GB
+  min_wal_size: 80MB
+  log_timezone: "'Etc/UTC'"
+  datestyle: "'iso, mdy'"
+  timezone: "'Etc/UTC'"
+  lc_messages: "'en_US.utf8'"
+  lc_monetary: "'en_US.utf8'"
+  lc_numeric: "'en_US.utf8'"
+  lc_time: "'en_US.utf8'"
+  default_text_search_config: "'pg_catalog.english'"
+  log_connections: "on"
+  log_disconnections: "on"
+
+# pg_hba.conf, one line per entry. Hardened vs. the old Terraform config:
+# no "trust" entries (which let anyone reach a Postgres socket/loopback
+# authenticate as any role with no password), and no unrestricted
+# replication line. Add scoped replication entries here if you add replicas.
+pgHbaLines:
+  - "local   all             all                                     scram-sha-256"
+  - "host    all             all             127.0.0.1/32            scram-sha-256"
+  - "host    all             all             ::1/128                 scram-sha-256"
+  - "host    all             all             all                     scram-sha-256"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Secret values are intentionally left blank here so this file stays safe to commit.
+# Supply real values via a separate, untracked file, e.g.:
+#   helm upgrade --install postgres . -f values.yaml -f values-secret.yaml
+# or via ArgoCD values (see argocd-application.yaml / README.md).
+secrets:
+  password: ""
