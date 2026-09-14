@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "postgres.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
