@@ -50,9 +50,15 @@ resources:
     memory: 512Mi
 
 podSecurityContext:
-  runAsUser: 999
-  runAsGroup: 999
-  fsGroup: 999
+  # hostPath volumes are NOT chowned by kubelet for fsGroup the way most
+  # CSI/NFS-backed PVCs are - the container has to run as whatever UID
+  # already owns the data on the host/NFS export, or initdb fails with
+  # "Operation not permitted" trying to chmod a directory it doesn't own.
+  # 1000 matches rydogg1, the user that owns /mnt/nfsdata on this cluster
+  # (same UID the old Terraform deployment used).
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
 
 securityContext:
   allowPrivilegeEscalation: false
