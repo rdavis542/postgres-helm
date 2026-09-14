@@ -2,7 +2,11 @@ replicaCount: 1
 
 image:
   repository: postgres
-  tag: "16"
+  # Pinned to an exact patch version rather than a floating "16" tag, so a
+  # pull on a new node (or after cache eviction) can't silently land on a
+  # different minor version than what's actually been tested here. Bump
+  # deliberately, not automatically.
+  tag: "16.14"
   pullPolicy: IfNotPresent
 
 postgres:
