@@ -1,0 +1,26 @@
+{{- if .Values.persistentVolume.enabled }}
+# Static PV, matching the hostPath-on-NFS approach from the old Terraform
+# setup - this cluster has no default StorageClass / dynamic provisioner.
+# claimRef binds this PV to exactly one PVC (the StatefulSet's generated
+# "data-<name>-0") so it can't be claimed by some other chart's PVC on this
+# cluster, unlike the old Terraform PV/PVC pair which matched loosely on
+# capacity/accessModes/storageClassName alone.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "postgres.name" . }}-pv
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.persistentVolume.capacity | quote }}
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: ""
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: {{ .Release.Namespace }}
+    name: data-{{ include "postgres.name" . }}-0
+  hostPath:
+    path: {{ .Values.persistentVolume.hostPath | quote }}
+    type: DirectoryOrCreate
+{{- end }}

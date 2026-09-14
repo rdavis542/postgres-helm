@@ -20,13 +20,26 @@ service:
   annotations: {}
 
 storage:
-  # "" = use the cluster's default StorageClass. Set explicitly if this
-  # cluster has no default class (the old Terraform setup used a manually
-  # created hostPath PV on NFS - avoid recreating that for a database;
-  # prefer a StorageClass backed by real block storage or a CSI driver
-  # rated for database workloads).
+  # "" = no dynamic provisioning; binds to the static PV below (or any other
+  # matching PV) instead. Set this to a real StorageClass name if this
+  # cluster ever gets a CSI driver rated for database workloads - that's
+  # preferable to the hostPath PV this defaults to.
   storageClassName: ""
   size: 2Gi
+
+persistentVolume:
+  # Static PV matching the old Terraform setup: no default StorageClass /
+  # dynamic provisioner exists on this cluster, so a PV has to be created
+  # up front, backed by a path that's actually an NFS mount present on
+  # every node (not truly node-local), same as before.
+  #
+  # Only correct for replicaCount: 1 - the claimRef below binds this PV to
+  # exactly one PVC name (data-postgres-0). Set enabled: false and manage
+  # storage yourself if you move to a real StorageClass/CSI driver, or to
+  # more than one replica.
+  enabled: true
+  hostPath: /mnt/nfsdata/data/k8s/postgres
+  capacity: 2Gi
 
 resources:
   requests:

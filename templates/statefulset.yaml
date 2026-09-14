@@ -84,9 +84,10 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
-        {{- if .Values.storage.storageClassName }}
+        # Rendered explicitly (even when empty) so this matches a static PV's
+        # storageClassName: "" exactly - an omitted field behaves differently
+        # (falls back to a default StorageClass if one ever gets added).
         storageClassName: {{ .Values.storage.storageClassName | quote }}
-        {{- end }}
         resources:
           requests:
             storage: {{ .Values.storage.size | quote }}

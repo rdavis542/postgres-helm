@@ -34,6 +34,19 @@ Terraform config:
   non-root `securityContext`** (`allowPrivilegeEscalation: false`, all capabilities
   dropped) were added — none of this existed in the Terraform deployment.
 
+## Storage
+
+This cluster has no default StorageClass / CSI provisioner, so `templates/pv.yaml`
+creates a static `PersistentVolume` (`persistentVolume.enabled: true` by default) backed
+by a `hostPath` at `persistentVolume.hostPath` (default `/mnt/nfsdata/data/k8s/postgres`,
+matching the old Terraform PV) — this assumes that path is an NFS mount present
+identically on every node, not truly node-local storage. It's bound via `claimRef` to
+exactly the one PVC the StatefulSet generates (`data-postgres-0`), so it can't be
+claimed by some other chart's PVC on this cluster the way loosely-matched static PVs
+can. This only works for `replicaCount: 1`; if you add replicas or ever get a real
+StorageClass, set `persistentVolume.enabled: false` and set `storage.storageClassName`
+instead.
+
 ## What did *not* change
 
 - **Service type is still `LoadBalancer`**, matching the current external-reachability
