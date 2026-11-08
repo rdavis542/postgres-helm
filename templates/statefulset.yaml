@@ -15,6 +15,11 @@ spec:
     metadata:
       labels:
         app: {{ include "postgres.name" . }}
+      {{- if .Values.postgresExporter.enabled }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.postgresExporter.port | quote }}
+      {{- end }}
     spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
@@ -62,6 +67,30 @@ spec:
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- if .Values.postgresExporter.enabled }}
+        - name: postgres-exporter
+          image: "{{ .Values.postgresExporter.image.repository }}:{{ .Values.postgresExporter.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresExporter.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.postgresExporter.port }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres.name" . }}
+                  key: password
+            # Connects over localhost, not the Service - both containers share
+            # this pod's network namespace.
+            - name: DATA_SOURCE_NAME
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:{{ .Values.service.port }}/$(POSTGRES_DB)?sslmode=disable"
+          resources:
+            {{- toYaml .Values.postgresExporter.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: config
           configMap:

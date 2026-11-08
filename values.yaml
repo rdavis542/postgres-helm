@@ -120,6 +120,21 @@ tolerations: []
 
 affinity: {}
 
+postgresExporter:
+  enabled: true
+  image:
+    repository: quay.io/prometheuscommunity/postgres-exporter
+    tag: v0.17.1
+    pullPolicy: IfNotPresent
+  port: 9187
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
 # Secret values are intentionally left blank here so this file stays safe to commit.
 # Supply real values via a separate, untracked file, e.g.:
 #   helm upgrade --install postgres . -f values.yaml -f values-secret.yaml
